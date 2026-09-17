@@ -1,4 +1,5 @@
-import { Pose } from "./assets/pose.js";
+// Pose 类由 index.html 以传统脚本方式加载：<script src="./assets/pose.js"></script>
+// （assets/pose.js 是 UMD 传统脚本，挂在全局 window.Pose，不能用 import 取）
 
 let pose = null, streaming = false, calibRef = null, autoCalTimer = null, firstResult = true;
 let sensDeg = 14, alertInterval = 30, soundOn = true;
