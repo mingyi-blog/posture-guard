@@ -4,6 +4,7 @@ let pose = null, streaming = false, calibRef = null, autoCalTimer = null;
 let sensDeg = 12, alertInterval = 30, soundOn = true;
 let xp = 0, level = 1, streakSec = 0, bestStreak = 0, totalSec = 0;
 let nudgeCnt = 0, lastAlertT = 0, goodSec = 0;
+let combo = 0, bestCombo = 0, energy = 100;
 let stream = null, timerInterval = null, _lastLandmarks = null;
 
 const $ = id => document.getElementById(id);
@@ -12,11 +13,15 @@ const dot = $("dot"), stTxt = $("stTxt"), btnStart = $("btnStart");
 const btnCal = $("btnCal"), btnStop = $("btnStop"), hint = $("hint");
 const alertBar = $("alertBar");
 const mCva = $("mCva"), mShoul = $("mShoul"), mTrunk = $("mTrunk"), mElbow = $("mElbow");
-const lvlBadge = $("lvlBadge"), xpsTxt = $("xpsTxt"), timerDisp = $("timerDisp");
+const lvlBadge = $("lvlBadge"), lvlTitle = $("lvlTitle"), xpTxt = $("xpTxt"), timerDisp = $("timerDisp");
 const sGood = $("sGood"), sNudge = $("sNudge"), sTotal = $("sTotal"), sStreak = $("sStreak");
-const scoreVal = $("scoreVal");
+const scoreVal = $("scoreVal"), comboBig = $("comboBig"), comboFloat = $("comboFloat");
+const energyFill = $("energyFill"), energyMini = $("energyMini"), toast = $("toast");
 const tPrivacy = $("tPrivacy"), tSound = $("tSound");
-const sSens = $("s Sens"), sVal = $("sVal"), sInt = $("sInt"), iVal = $("iVal");
+const sSens = $("sSens"), sVal = $("sVal"), sInt = $("sInt"), iVal = $("iVal");
+
+const LEVEL_TITLES = ["见习坐姿官","坐姿学徒","端正新手","挺直能手","坐姿达人","平衡高手","稳坐专家","不倒大师","坐姿宗师","不倒王者"];
+const COMBO_BADGES = {10:"初露锋芒",30:"渐入佳境",60:"稳如泰山",100:"不倒传说"};
 
 function angle(a,b,c){
   const va=a.x-b.x,va2=a.y-b.y,vb=c.x-b.x,vb2=c.y-b.y;
@@ -52,16 +57,52 @@ function isGood(m){
   return d1 < sensDeg && d2 < sensDeg*1.5;
 }
 
-function playBeep(){
+function playBeep(freq=440,dur=0.2,vol=0.15){
   if(!soundOn) return;
   try {
     const ac = new (window.AudioContext||window.webkitAudioContext)();
     const o=ac.createOscillator(), g=ac.createGain();
     o.connect(g); g.connect(ac.destination);
-    o.frequency.value=880; o.type="sine"; g.gain.value=0.2;
-    o.start(); g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+0.15);
-    o.stop(ac.currentTime+0.15);
+    o.frequency.value=freq; o.type="sine"; g.gain.value=vol;
+    o.start(); g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+dur);
+    o.stop(ac.currentTime+dur);
   } catch(e){}
+}
+
+function playChime(){
+  if(!soundOn) return;
+  try{
+    const ac=new (window.AudioContext||window.webkitAudioContext)();
+    [523,659,784].forEach((f,i)=>{
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.frequency.value=f; o.type="triangle";
+      const t=ac.currentTime+i*0.08;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.14,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.12);
+      o.start(t); o.stop(t+0.14);
+    });
+  }catch(e){}
+}
+
+function showToast(msg){
+  toast.textContent=msg; toast.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>toast.classList.remove("show"),1900);
+}
+
+function showComboFloat(){
+  comboFloat.textContent="连击 "+combo+"!";
+  comboFloat.classList.add("show");
+  clearTimeout(showComboFloat._t);
+  showComboFloat._t=setTimeout(()=>comboFloat.classList.remove("show"),550);
+}
+
+function setLevel(){
+  const idx=Math.min(level,LEVEL_TITLES.length)-1;
+  lvlBadge.textContent="Lv."+level;
+  lvlTitle.textContent=LEVEL_TITLES[idx];
 }
 
 function drawSkeleton(lm){
@@ -91,16 +132,19 @@ function updateUI(m,score,good){
   setM(mElbow,m.elbowAngle,[85,115]);
   scoreVal.textContent=score;
   scoreVal.style.color=score>=70?"#4ade80":score>=40?"#fbbf24":"#f87171";
+  energy=score;
+  energyFill.style.width=score+"%";
+  energyMini.style.width=score+"%";
   alertBar.style.display=(!good&&Date.now()-lastAlertT>alertInterval*1000)?"block":"none";
 }
 
-function addXP(dt){
+function addXP(){
   if(!calibRef) return;
-  xp += dt;
+  const mult = 1 + Math.floor(combo/10);
+  xp += 1*mult;
   const need = level*100;
-  while(xp>=need){xp-=need;level++;}
-  lvlBadge.textContent="Lv."+level;
-  xpsTxt.textContent=Math.round(xp)+"/"+need+" XP";
+  while(xp>=need){ xp-=need; level++; setLevel(); showToast("升级啦！"+LEVEL_TITLES[Math.min(level,LEVEL_TITLES.length)-1]); playChime(); }
+  xpTxt.textContent=Math.round(xp)+"/"+(level*100)+" XP";
 }
 
 function startTimer(){
@@ -110,11 +154,20 @@ function startTimer(){
     totalSec++;
     const m = detectMetrics(_lastLandmarks||[]);
     const g = isGood(m);
-    if(g){goodSec++;streakSec++;if(streakSec>bestStreak)bestStreak=streakSec}else{streakSec=0}
-    addXP(1);
+    if(g){
+      goodSec++; streakSec++; if(streakSec>bestStreak)bestStreak=streakSec;
+      combo++; if(combo>bestCombo)bestCombo=combo;
+      if(COMBO_BADGES[combo]){ showToast(combo+" 连击 · "+COMBO_BADGES[combo]); playChime(); }
+      else if(combo%5===0) showComboFloat();
+    } else {
+      streakSec=0;
+    }
+    comboBig.textContent="连击 "+combo;
+    sStreak.textContent=bestCombo;
+    addXP();
     const mins=Math.floor(totalSec/60), secs=totalSec%60;
     timerDisp.textContent=String(mins).padStart(2,"0")+":"+String(secs).padStart(2,"0");
-    sTotal.textContent=mins+"分"; sStreak.textContent=bestStreak+"分";
+    sTotal.textContent=mins+"分";
     sGood.textContent=totalSec?Math.round(goodSec/totalSec*100)+"%":"0%";
     sNudge.textContent=nudgeCnt;
   },1000);
@@ -127,11 +180,11 @@ function onResults(results){
   if(results.poseLandmarks && results.poseLandmarks.length>0){
     _lastLandmarks = results.poseLandmarks;
     if(!calibRef && !autoCalTimer){
-      hint.textContent="🤖 AI 正在学习你的标准坐姿…"; hint.classList.add("show");
+      hint.textContent="🤖 AI 正在记住你的标准坐姿…"; hint.classList.add("show");
       autoCalTimer = setTimeout(()=>{
         if(_lastLandmarks && !calibRef){
           calibRef = detectMetrics(_lastLandmarks);
-          hint.textContent="✅ 已自动记住你的坐姿！坐歪了会提醒你（点「校准」可重置）";
+          hint.textContent="✅ 已记住！坐歪了连击会断，坐直攒能量～（点「重设」可改）";
           hint.classList.add("show"); setTimeout(()=>hint.classList.remove("show"),3500);
         }
       },3000);
@@ -140,8 +193,11 @@ function onResults(results){
     const g = isGood(m), s = calcScore(m);
     updateUI(m,s,g);
     drawSkeleton(results.poseLandmarks);
-    if(!g && Date.now()-lastAlertT>alertInterval*1000){
-      lastAlertT=Date.now(); nudgeCnt++; playBeep();
+    if(!g){
+      if(combo>0){ combo=0; comboBig.textContent="连击 0"; }
+      if(Date.now()-lastAlertT>alertInterval*1000){
+        lastAlertT=Date.now(); nudgeCnt++; playBeep(440,0.2,0.15);
+      }
     }
   }
 }
@@ -155,7 +211,7 @@ async function startCamera(){
     pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     pose.onResults(onResults);
     streaming = true;
-    dot.className="dot on"; stTxt.textContent="监测中";
+    dot.className="dot on"; stTxt.textContent="闯关中";
     btnStart.style.display="none"; btnCal.style.display="block"; btnStop.style.display="block";
     hint.classList.remove("show");
     startTimer();
@@ -170,6 +226,8 @@ function stopCamera(){
   btnStart.style.display="block"; btnCal.style.display="none"; btnStop.style.display="none";
   hint.classList.add("show"); stopTimer();
   scoreVal.textContent="--";
+  combo=0; comboBig.textContent="连击 0";
+  energyFill.style.width="100%"; energyMini.style.width="100%";
   [mCva,mShoul,mTrunk,mElbow].forEach(e=>{e.textContent="--°";e.className="meter-val"});
   _lastLandmarks=null;
 }
@@ -178,7 +236,7 @@ btnStart.addEventListener("click",startCamera);
 btnStop.addEventListener("click",stopCamera);
 btnCal.addEventListener("click",()=>{
   if(_lastLandmarks){calibRef=detectMetrics(_lastLandmarks);
-    hint.textContent="✅ 已校准! AI 记住了你的标准坐姿";
+    hint.textContent="✅ 已重设！AI 记住了当前标准坐姿";
     hint.classList.add("show"); setTimeout(()=>hint.classList.remove("show"),3000);
   } else { alert("请先开启摄像头并坐好"); }
 });
@@ -198,4 +256,4 @@ document.addEventListener("keydown",e=>{
   if(e.key==="s"||e.key==="S") streaming?stopCamera():startCamera();
 });
 
-console.log("坐姿卫士 v0.1 MVP 已加载");
+console.log("坐姿闯关王 v0.2 已加载");
