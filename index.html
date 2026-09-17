@@ -143,7 +143,7 @@ footer{text-align:center;font-size:.66rem;color:var(--muted);padding-top:4px}
       <div class="combo-center" id="comboBig">连击 0</div>
       <div class="energy-wrap"><div class="energy-fill" id="energyFill"></div><span class="energy-label">能量</span></div>
       <div class="alert-bar" id="alertBar">歪了！坐直攒能量 💪</div>
-      <div class="loading" id="loading"><div class="spinner"></div><span>AI 模型加载中…</span></div>
+      <div class="loading hide" id="loading"><div class="spinner"></div><span>AI 模型加载中…</span></div>
     </div>
   </main>
 
@@ -177,6 +177,35 @@ footer{text-align:center;font-size:.66rem;color:var(--muted);padding-top:4px}
   <div class="toast" id="toast"></div>
   <footer>坐姿闯关王 · AI 姿态闯关小游戏 · MediaPipe Pose · 本地推理</footer>
 </div>
-<script type="module" src="app.js?v=4"></script>
+<style>
+.env-banner{display:none;position:fixed;left:50%;bottom:26px;transform:translateX(-50%);max-width:520px;width:calc(100% - 32px);background:#fff;border:1.5px solid #f43f5e;border-radius:14px;padding:14px 18px;box-shadow:0 10px 30px rgba(15,23,42,.18);z-index:99;font-size:.82rem;line-height:1.6;color:#0f172a}
+.env-banner.show{display:block}
+.env-banner b{color:#f43f5e}
+.env-banner code{background:#f1f5f9;border-radius:6px;padding:1px 6px;font-size:.78rem}
+</style>
+<div class="env-banner" id="envBanner"></div>
+<script>
+(function(){
+  function showBanner(html){
+    var b=document.getElementById("envBanner");
+    if(!b||b.classList.contains("show"))return;
+    b.innerHTML=html;b.classList.add("show");
+    var l=document.getElementById("loading"); if(l)l.classList.add("hide");
+  }
+  window.__pgEnvCheck=showBanner;
+  if(location.protocol==="file:"){
+    showBanner("<b>打开方式不对</b>：直接双击打开无法调用摄像头与 AI 模型。<br>请双击资产目录里的 <code>启动服务器.bat</code>，会自动打开正确地址。");
+  } else if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
+    showBanner("<b>当前环境不支持摄像头</b>：请在常规浏览器（Chrome/Edge）中打开，或双击 <code>启动服务器.bat</code> 本地运行。");
+  } else {
+    setTimeout(function(){
+      if(!window.__PG_READY){
+        showBanner("<b>AI 模块加载失败</b>：页面资源没有加载完整。<br>请双击资产目录里的 <code>启动服务器.bat</code> 本地运行，或访问正式线上地址。");
+      }
+    },6000);
+  }
+})();
+</script>
+<script type="module" src="app.js?v=5"></script>
 </body>
 </html>
