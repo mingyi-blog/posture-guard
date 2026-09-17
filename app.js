@@ -198,24 +198,48 @@ function onResults(results){
 }
 
 async function startCamera(){
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
+    window.__pgEnvCheck&&window.__pgEnvCheck("<b>当前环境不支持摄像头</b>：请在 Chrome/Edge 中通过本地服务器打开（双击 <code>启动服务器.bat</code>）。");
+    return;
+  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:/user/,width:{ideal:640},height:{ideal:480}}});
-    vid.srcObject = stream; vid.play();
-    vid.addEventListener("loadedmetadata",()=>{ cv.width=vid.videoWidth||640; cv.height=vid.videoHeight||480; });
-    loading.classList.remove("hide");
+  } catch(e){
+    loading.classList.add("hide");
+    const why = e && e.name==="NotAllowedError" ? "摄像头权限被拒绝——请在浏览器地址栏允许摄像头后重试" : "无法访问摄像头："+(e&&e.message||e);
+    window.__pgEnvCheck&&window.__pgEnvCheck("<b>摄像头打开失败</b>："+why);
+    return;
+  }
+  vid.srcObject = stream; vid.play();
+  vid.addEventListener("loadedmetadata",()=>{ cv.width=vid.videoWidth||640; cv.height=vid.videoHeight||480; });
+  loading.classList.remove("hide");
+  try{
     pose = new Pose({locateFile:(f)=>"./assets/"+f});
-    pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-    pose.onResults(onResults);
-    streaming = true;
-    btnStart.style.display="none"; btnCal.style.display="block"; btnStop.style.display="block";
-    firstResult = true;
-    startTimer();
-  } catch(e){ alert("无法访问摄像头："+e.message); }
+  }catch(e){
+    loading.classList.add("hide");
+    window.__pgEnvCheck&&window.__pgEnvCheck("<b>AI 模块加载失败</b>：请通过 <code>启动服务器.bat</code> 打开本页（不要直接双击 html）。");
+    return;
+  }
+  pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+  pose.onResults(onResults);
+  streaming = true;
+  btnStart.style.display="none"; btnCal.style.display="block"; btnStop.style.display="block";
+  firstResult = true;
+  // 模型加载超时兜底：30 秒仍无首帧结果则提示并停止
+  clearTimeout(startCamera._modelTimeout);
+  startCamera._modelTimeout = setTimeout(()=>{
+    if(firstResult && streaming){
+      window.__pgEnvCheck&&window.__pgEnvCheck("<b>AI 模型加载超时</b>：网络或资源异常。<br>请刷新重试，或双击 <code>启动服务器.bat</code> 本地运行。");
+      stopCamera();
+    }
+  },30000);
+  startTimer();
 }
 
 function stopCamera(){
   streaming=false;
   if(autoCalTimer){clearTimeout(autoCalTimer);autoCalTimer=null;}
+  clearTimeout(startCamera._modelTimeout);
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   btnStart.style.display="block"; btnCal.style.display="none"; btnStop.style.display="none";
   stopTimer();
@@ -247,3 +271,4 @@ document.addEventListener("keydown",e=>{
 });
 
 console.log("坐姿闯关王 已加载");
+window.__PG_READY = true;
