@@ -194,18 +194,18 @@ footer{text-align:center;font-size:.66rem;color:var(--muted);padding-top:4px}
   }
   window.__pgEnvCheck=showBanner;
   if(location.protocol==="file:"){
-    showBanner("<b>打开方式不对</b>：直接双击打开无法调用摄像头与 AI 模型。<br>请双击资产目录里的 <code>启动服务器.bat</code>，会自动打开正确地址。");
+    showBanner("<b>打开方式不对</b>：直接双击打开无法调用摄像头与 AI 模型。<br>请双击资产目录里的 <code>双击这里开始.bat</code>，会自动打开正确地址。");
   } else if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
-    showBanner("<b>当前环境不支持摄像头</b>：请在常规浏览器（Chrome/Edge）中打开，或双击 <code>启动服务器.bat</code> 本地运行。");
+    showBanner("<b>当前环境不支持摄像头</b>：请在常规浏览器（Chrome/Edge）中打开，或双击 <code>双击这里开始.bat</code> 本地运行。");
   } else {
     setTimeout(function(){
       if(!window.__PG_READY){
-        showBanner("<b>AI 模块加载失败</b>：页面资源没有加载完整。<br>请双击资产目录里的 <code>启动服务器.bat</code> 本地运行，或访问正式线上地址。");
+        showBanner("<b>AI 模块加载失败</b>：页面资源没有加载完整。<br>请双击资产目录里的 <code>双击这里开始.bat</code> 本地运行，或访问正式线上地址。");
       }
     },6000);
   }
 })();
 </script>
-<script type="module" src="app.js?v=5"></script>
+<script type="module" src="app.js?v=6"></script>
 </body>
 </html>
