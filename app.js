@@ -24,8 +24,17 @@ const COMBO_BADGES = {10:"初露锋芒",30:"渐入佳境",60:"稳如泰山",100:
 
 function angle(a,b,c){
   const va=a.x-b.x, va2=a.y-b.y, vb=c.x-b.x, vb2=c.y-b.y;
-  const cos=(va*vb+va2*vb2)/(Math.sqrt(va*va+va2*va2)*Math.sqrt(vb*vb+vb2*vb2));
+  const na=Math.sqrt(va*va+va2*va2), nb=Math.sqrt(vb*vb+vb2*vb2);
+  if(na<1e-6||nb<1e-6) return 0;
+  const cos=(va*vb+va2*vb2)/(na*nb);
   return Math.acos(Math.min(1,Math.max(-1,cos)))*180/Math.PI;
+}
+
+// 点 a 相对点 b 偏离竖直方向的角度：0° = 完全竖直，越大越歪
+function tiltFromVertical(a,b){
+  const dx=a.x-b.x, dy=a.y-b.y;
+  if(Math.sqrt(dx*dx+dy*dy)<1e-6) return 0;
+  return Math.min(180, Math.abs(Math.atan2(dx, Math.abs(dy)))*180/Math.PI);
 }
 
 function detectMetrics(lm){
@@ -33,27 +42,37 @@ function detectMetrics(lm){
   const lelbow=lm[13], reelbow=lm[14], lwrist=lm[15], rwrist=lm[16];
   const shMid={x:(lsh.x+rsh.x)/2, y:(lsh.y+rsh.y)/2};
   const hipMid={x:(lp.x+rp.x)/2, y:(lp.y+rp.y)/2};
-  const cvAngle = angle(nose, shMid, hipMid);
-  const shoulAngle = Math.abs(lsh.y - rsh.y) * 200;
-  const trunkAngle = angle(lsh, shMid, hipMid);
+  const shoulderW = Math.max(0.04, Math.abs(lsh.x-rsh.x));
+
+  // ① 头部侧倾（鼻子相对肩中点的竖直偏移）
+  const tilt = tiltFromVertical(nose, shMid);
+  // ② 含胸/低头：鼻-肩竖直距离 ÷ 肩宽（用肩宽归一 → 不受远近影响）
+  const dropRatio = (shMid.y - nose.y) / shoulderW;
+  // 以 0.80 为"坐直"参考（适配网络摄像头俯拍视角）；每少 0.1 折算约 7°
+  const dropDeg = Math.max(0, (0.80 - dropRatio)) * 70;
+
+  const cvAngle   = tilt + dropDeg;                                   // 前倾/低头 综合
+  const shoulAngle= Math.atan2(Math.abs(lsh.y-rsh.y), shoulderW)*180/Math.PI; // 肩倾（真实角度）
+  const trunkAngle= tiltFromVertical(hipMid, shMid);                   // 身弯（肩-胯相对竖直）
   const lElbow = angle(lsh, lelbow, lwrist);
   const rElbow = angle(rsh, reelbow, rwrist);
-  return { cvAngle, shoulAngle, trunkAngle, elbowAngle:(lElbow+rElbow)/2 };
+  return { cvAngle, shoulAngle, trunkAngle, elbowAngle:(lElbow+rElbow)/2,
+           tilt, dropRatio };
 }
 
 function calcScore(m){
   let s=100;
-  s -= Math.max(0, m.cvAngle-15)*1.8;
-  s -= Math.max(0, m.shoulAngle-5)*2.6;
-  s -= Math.max(0, m.trunkAngle-20)*1.3;
-  s -= Math.max(0, Math.abs(m.elbowAngle-100))*0.4;
+  s -= Math.min(45, Math.max(0, m.cvAngle-14)*2.2);            // 前倾/低头：主扣分项
+  s -= Math.min(25, Math.max(0, m.shoulAngle-5)*2.2);          // 肩倾
+  s -= Math.min(30, Math.max(0, m.trunkAngle-7)*3.0);          // 身弯
+  s -= Math.min(15, Math.max(0, Math.abs(m.elbowAngle-105))*0.25); // 手肘（轻权重，别喧宾夺主）
   return Math.max(0, Math.min(100, Math.round(s)));
 }
 
 function isGood(m){
-  if(!calibRef) return m.cvAngle < 22 && m.trunkAngle < 28;
+  if(!calibRef) return m.cvAngle < 20 && m.trunkAngle < 10;
   const d1=Math.abs(m.cvAngle-calibRef.cvAngle), d2=Math.abs(m.trunkAngle-calibRef.trunkAngle);
-  return d1 < sensDeg && d2 < sensDeg*1.6;
+  return d1 < sensDeg && d2 < sensDeg*0.6;
 }
 
 function playBeep(freq=440,dur=0.2,vol=0.15){
@@ -118,10 +137,11 @@ function drawSkeleton(lm){
 
 function updateUI(m,score,good){
   const setM=(el,v,thr)=>{el.textContent=Math.round(v)+"°"; el.className="mv "+(v<=thr[0]?"g":v<=thr[1]?"w":"b")};
-  setM(mCva,m.cvAngle,[15,25]);
+  setM(mCva,m.cvAngle,[20,30]);
   setM(mShoul,m.shoulAngle,[5,10]);
-  setM(mTrunk,m.trunkAngle,[20,35]);
-  setM(mElbow,m.elbowAngle,[85,115]);
+  setM(mTrunk,m.trunkAngle,[7,12]);
+  setM(mElbow,m.elbowAngle,[85,150]);
+  window.__pgLastMetrics = m;   // 调试用：便于外部验证脚本读取真实数值
   scoreVal.textContent=score;
   scoreVal.style.color=score>=70?"#059669":score>=40?"#d97706":"#f43f5e";
   energy=score;
@@ -198,6 +218,21 @@ function onResults(results){
   }
 }
 
+// ── 喂帧循环：把摄像头画面一帧帧送进模型，模型才会回调 onResults ──
+// （之前缺的就是这一段：模型等着喂帧，没人喂，所以四个指标永远不动）
+let pumpErr = "";
+async function pumpFrames(){
+  if(!streaming) return;
+  try{
+    if(vid.readyState >= 2){            // HAVE_CURRENT_DATA 以上才有画面可送
+      await pose.send({image: vid});
+    }
+  }catch(e){
+    if(!pumpErr) pumpErr = String((e && (e.message||e)) || e);
+  }
+  if(streaming) requestAnimationFrame(pumpFrames);
+}
+
 async function startCamera(){
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
     window.__pgEnvCheck&&window.__pgEnvCheck("<b>当前环境不支持摄像头</b>：请在 Chrome/Edge 中通过本地服务器打开（双击 <code>双击这里开始.bat</code>）。");
@@ -223,14 +258,17 @@ async function startCamera(){
   }
   pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
   pose.onResults(onResults);
+  pumpErr = "";
   streaming = true;
+  pumpFrames();                          // 启动喂帧循环
   btnStart.style.display="none"; btnCal.style.display="block"; btnStop.style.display="block";
   firstResult = true;
   // 模型加载超时兜底：30 秒仍无首帧结果则提示并停止
   clearTimeout(startCamera._modelTimeout);
   startCamera._modelTimeout = setTimeout(()=>{
     if(firstResult && streaming){
-      window.__pgEnvCheck&&window.__pgEnvCheck("<b>AI 模型加载超时</b>：网络或资源异常。<br>请刷新重试，或双击 <code>双击这里开始.bat</code> 本地运行。");
+      const extra = pumpErr ? ("<br>底层报错：" + pumpErr.slice(0,120)) : "";
+      window.__pgEnvCheck&&window.__pgEnvCheck("<b>模型没有返回结果</b>：30 秒内未收到首帧识别。"+extra+"<br>请刷新重试，或双击 <code>双击这里开始.bat</code> 本地运行。");
       stopCamera();
     }
   },30000);
