@@ -39,8 +39,8 @@ body{
   position:relative;width:100%;aspect-ratio:4/3;background:#0f172a;
   border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)
 }
-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);z-index:1}
+canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none;z-index:2}
 .hud{position:absolute;inset:0;padding:14px;display:flex;flex-direction:column;pointer-events:none}
 .hud-top{display:flex;justify-content:space-between;align-items:flex-start}
 .level-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.92);border-radius:999px;padding:5px 10px;box-shadow:var(--shadow)}
@@ -198,14 +198,20 @@ footer{text-align:center;font-size:.66rem;color:var(--muted);padding-top:4px}
   } else if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
     showBanner("<b>当前环境不支持摄像头</b>：请在常规浏览器（Chrome/Edge）中打开，或双击 <code>双击这里开始.bat</code> 本地运行。");
   } else {
+    window.addEventListener("error", function(ev){
+      if(!window.__PG_READY && ev && ev.message){
+        showBanner("<b>脚本出错</b>：" + ev.message + "<br>请刷新重试，或双击 <code>双击这里开始.bat</code> 本地运行。");
+      }
+    }, true);
     setTimeout(function(){
       if(!window.__PG_READY){
-        showBanner("<b>AI 模块加载失败</b>：页面资源没有加载完整。<br>请双击资产目录里的 <code>双击这里开始.bat</code> 本地运行，或访问正式线上地址。");
+        showBanner("<b>资源没有加载完整</b>：本机可能缺少文件。<br>确认整个资产文件夹完整，或直接访问正式线上地址。");
       }
-    },6000);
+    },10000);
   }
 })();
 </script>
-<script type="module" src="app.js?v=7"></script>
+<script src="./assets/pose.js" onerror="window.__pgEnvCheck&&window.__pgEnvCheck('<b>AI 模块文件缺失</b>：<code>assets/pose.js</code> 没有取到。<br>请确认资产文件夹完整，或访问正式线上地址。')"></script>
+<script src="app.js?v=8" onerror="window.__pgEnvCheck&&window.__pgEnvCheck('<b>游戏脚本缺失</b>：<code>app.js</code> 没有取到。<br>请刷新重试，或访问正式线上地址。')"></script>
 </body>
 </html>
