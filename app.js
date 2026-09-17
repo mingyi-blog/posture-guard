@@ -1,6 +1,6 @@
 import { Pose } from "./assets/pose.js";
 
-let pose = null, streaming = false, calibRef = null;
+let pose = null, streaming = false, calibRef = null, autoCalTimer = null;
 let sensDeg = 12, alertInterval = 30, soundOn = true;
 let xp = 0, level = 1, streakSec = 0, bestStreak = 0, totalSec = 0;
 let nudgeCnt = 0, lastAlertT = 0, goodSec = 0;
@@ -106,7 +106,7 @@ function addXP(dt){
 function startTimer(){
   if(timerInterval) return;
   timerInterval = setInterval(()=>{
-    if(!streaming||!calibRef) return;
+    if(!streaming) return;
     totalSec++;
     const m = detectMetrics(_lastLandmarks||[]);
     const g = isGood(m);
@@ -126,6 +126,16 @@ function onResults(results){
   if(!streaming) return;
   if(results.poseLandmarks && results.poseLandmarks.length>0){
     _lastLandmarks = results.poseLandmarks;
+    if(!calibRef && !autoCalTimer){
+      hint.textContent="🤖 AI 正在学习你的标准坐姿…"; hint.classList.add("show");
+      autoCalTimer = setTimeout(()=>{
+        if(_lastLandmarks && !calibRef){
+          calibRef = detectMetrics(_lastLandmarks);
+          hint.textContent="✅ 已自动记住你的坐姿！坐歪了会提醒你（点「校准」可重置）";
+          hint.classList.add("show"); setTimeout(()=>hint.classList.remove("show"),3500);
+        }
+      },3000);
+    }
     const m = detectMetrics(results.poseLandmarks);
     const g = isGood(m), s = calcScore(m);
     updateUI(m,s,g);
@@ -140,6 +150,7 @@ async function startCamera(){
   try {
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:/user/,width:{ideal:640},height:{ideal:480}}});
     vid.srcObject = stream; vid.play();
+    hint.textContent="🤖 AI 模型加载中，请稍候…"; hint.classList.add("show");
     pose = new Pose({locateFile:(f)=>"./assets/"+f});
     pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
     pose.onResults(onResults);
@@ -153,6 +164,7 @@ async function startCamera(){
 
 function stopCamera(){
   streaming=false;
+  if(autoCalTimer){clearTimeout(autoCalTimer);autoCalTimer=null;}
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   dot.className="dot off"; stTxt.textContent="未启动";
   btnStart.style.display="block"; btnCal.style.display="none"; btnStop.style.display="none";
