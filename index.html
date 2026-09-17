@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>坐姿卫士 Posture Guard - AI坐姿监测</title>
+<title>坐姿闯关王 Posture Quest - AI 姿态小游戏</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:#0a0a14;color:#e0e0f0;min-height:100vh}
@@ -17,7 +17,11 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1
 .score-badge{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.75);border-radius:10px;padding:8px 12px;text-align:center;border:1px solid rgba(100,220,255,0.3)}
 .score-num{font-size:1.5rem;font-weight:bold;color:#4ade80}
 .score-label{font-size:0.6rem;color:#888}
-.alert-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(255,60,60,0.9);color:#fff;text-align:center;padding:10px;font-weight:bold;font-size:1.1rem;display:none}
+.energy-bar{position:absolute;top:10px;left:10px;width:150px;height:14px;background:rgba(0,0,0,0.6);border-radius:7px;overflow:hidden;border:1px solid rgba(100,220,255,0.3)}
+.energy-fill{height:100%;width:100%;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width 0.3s}
+.combo-float{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);font-size:2.4rem;font-weight:bold;color:#ffd54a;text-shadow:0 2px 10px rgba(0,0,0,0.7);opacity:0;transition:opacity 0.25s;pointer-events:none}
+.combo-float.show{opacity:1}
+.alert-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(255,140,0,0.92);color:#fff;text-align:center;padding:10px;font-weight:bold;font-size:1.05rem;display:none}
 .sidebar{width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
 .card{background:rgba(255,255,255,0.04);border:1px solid rgba(100,220,255,0.1);border-radius:10px;padding:12px}
 .card-title{font-size:0.7rem;color:#64dcff;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
@@ -30,9 +34,14 @@ canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1
 .meter-name{color:#aaa}
 .meter-val{font-weight:bold}
 .meter-val.g{color:#4ade80}.meter-val.w{color:#fbbf24}.meter-val.b{color:#f87171}
-.xp-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.combo-big{text-align:center;font-size:1.7rem;font-weight:bold;color:#ffd54a;margin:2px 0;transition:transform 0.15s}
+.energy-mini{height:10px;background:rgba(0,0,0,0.3);border-radius:5px;overflow:hidden;margin:6px 0}
+.energy-mini-fill{height:100%;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width 0.3s}
+.xp-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .xp-icon{font-size:1.4rem}.level-badge{background:linear-gradient(135deg,#a855f7,#ec4899);border-radius:5px;padding:2px 8px;font-size:0.7rem;font-weight:bold}
-.timer{font-size:1.8rem;text-align:center;font-variant-numeric:tabular-nums;margin:6px 0}
+.level-title{color:#ffd54a;font-size:0.7rem;margin-left:2px}
+.xp-txt{font-size:0.65rem;color:#888;text-align:center;margin-bottom:4px}
+.timer{font-size:1.8rem;text-align:center;font-variant-numeric:tabular-nums;margin:2px 0}
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .stat{background:rgba(0,0,0,0.3);border-radius:6px;padding:8px;text-align:center}
 .stat-n{font-size:1.2rem;font-weight:bold;color:#64dcff}.stat-l{font-size:0.6rem;color:#888}
@@ -49,61 +58,69 @@ input[type=range]{width:90px;accent-color:#64dcff}
 .hint{background:rgba(100,220,255,0.08);border:1px solid rgba(100,220,255,0.15);border-radius:8px;padding:8px 12px;font-size:0.75rem;color:#64dcff;margin-top:10px;display:none}
 .hint.show{display:block}
 .privacy-blur{filter:blur(14px)}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;padding:10px 22px;border-radius:20px;font-weight:bold;font-size:0.95rem;opacity:0;transition:all 0.3s;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 footer{text-align:center;padding:16px;font-size:0.65rem;color:#444;border-top:1px solid rgba(255,255,255,0.05)}
 </style>
 </head>
 <body>
 <div class="header">
-<h1>🪑 坐姿卫士 Posture Guard</h1>
-<p>AI 实时坐姿监测 · 本地处理 · 隐私安全 · 零上传</p>
+<h1>🎮 坐姿闯关王 Posture Quest</h1>
+<p>AI 姿态小游戏 · 本地运行 · 隐私安全 · 零上传</p>
 </div>
 <div class="layout">
 <div class="video-box">
 <video id="vid" autoplay playsinline></video>
 <canvas id="cv"></canvas>
-<div class="score-badge"><div class="score-num" id="scoreVal">--</div><div class="score-label">姿态评分</div></div>
-<div class="alert-bar" id="alertBar">坐姿有点歪啦，挺一挺～</div>
+<div class="score-badge"><div class="score-num" id="scoreVal">--</div><div class="score-label">姿态分</div></div>
+<div class="energy-bar"><div class="energy-fill" id="energyFill"></div></div>
+<div class="combo-float" id="comboFloat">连击!</div>
+<div class="alert-bar" id="alertBar">歪了！连击要断啦，坐直攒能量！</div>
 </div>
 <div class="sidebar">
 <div class="card">
 <div class="card-title">控制</div>
 <div class="status"><span class="dot off" id="dot"></span><span id="stTxt">未启动</span></div>
-<button class="btn btn-go" id="btnStart">🎥 开启摄像头</button>
-<button class="btn btn-out" id="btnCal" style="margin-top:8px;display:none">📐 校准当前坐姿</button>
+<button class="btn btn-go" id="btnStart">🎮 开始闯关</button>
+<button class="btn btn-out" id="btnCal" style="margin-top:8px;display:none">📐 重设标准坐姿</button>
 <button class="btn btn-out" id="btnStop" style="margin-top:8px;display:none">⏹ 停止</button>
-<div class="hint show" id="hint">💡 坐好后点「校准」，让 AI 记住你的标准姿态</div>
+<div class="hint show" id="hint">💡 坐好后点一下「开始闯关」，AI 会自动记住你的标准姿态</div>
 </div>
 <div class="card">
-<div class="card-title">指标</div>
-<div class="meter"><span class="meter-name">头前倾 CVA</span><span class="meter-val" id="mCva">--°</span></div>
-<div class="meter"><span class="meter-name">肩倾斜</span><span class="meter-val" id="mShoul">--°</span></div>
-<div class="meter"><span class="meter-name">躯干屈曲</span><span class="meter-val" id="mTrunk">--°</span></div>
-<div class="meter"><span class="meter-name">肘角</span><span class="meter-val" id="mElbow">--°</span></div>
+<div class="card-title">保持</div>
+<div class="meter"><span class="meter-name">前倾</span><span class="meter-val" id="mCva">--°</span></div>
+<div class="meter"><span class="meter-name">肩斜</span><span class="meter-val" id="mShoul">--°</span></div>
+<div class="meter"><span class="meter-name">身弯</span><span class="meter-val" id="mTrunk">--°</span></div>
+<div class="meter"><span class="meter-name">手肘</span><span class="meter-val" id="mElbow">--°</span></div>
 </div>
 <div class="card">
-<div class="card-title">养成</div>
-<div class="xp-row"><span class="xp-icon">🪑</span><span class="level-badge" id="lvlBadge">Lv.1</span><span style="color:#888;font-size:0.7rem" id="xpTxt">0/100 XP</span></div>
+<div class="card-title">闯关</div>
+<div class="combo-big" id="comboBig">连击 0</div>
+<div class="energy-mini"><div class="energy-mini-fill" id="energyMini"></div></div>
+<div class="xp-row"><span class="xp-icon">🏆</span><span class="level-badge" id="lvlBadge">Lv.1</span><span class="level-title" id="lvlTitle">见习坐姿官</span></div>
+<div class="xp-txt" id="xpTxt">0/100 XP</div>
 <div class="timer" id="timerDisp">00:00</div>
 </div>
 <div class="card">
-<div class="card-title">今日统计</div>
+<div class="card-title">战绩</div>
 <div class="stats-grid">
-<div class="stat"><div class="stat-n" id="sGood">0%</div><div class="stat-l">好姿势</div></div>
-<div class="stat"><div class="stat-n" id="sNudge">0</div><div class="stat-l">提醒次数</div></div>
-<div class="stat"><div class="stat-n" id="sTotal">0分</div><div class="stat-l">总时长</div></div>
-<div class="stat"><div class="stat-n" id="sStreak">0分</div><div class="stat-l">最长连</div></div>
+<div class="stat"><div class="stat-n" id="sGood">0%</div><div class="stat-l">稳坐率</div></div>
+<div class="stat"><div class="stat-n" id="sNudge">0</div><div class="stat-l">失误</div></div>
+<div class="stat"><div class="stat-n" id="sTotal">0分</div><div class="stat-l">闯关时长</div></div>
+<div class="stat"><div class="stat-n" id="sStreak">0</div><div class="stat-l">最长连击</div></div>
 </div>
 </div>
 <div class="card">
 <div class="card-title">设置</div>
-<div class="setting"><label>灵敏度(°)</label><input type="range" id="s Sens" min="5" max="25" value="12"><span id="sVal">12</span></div>
+<div class="setting"><label>灵敏度(°)</label><input type="range" id="sSens" min="5" max="25" value="12"><span id="sVal">12</span></div>
 <div class="setting"><label>提醒间隔(s)</label><input type="range" id="sInt" min="10" max="120" value="30"><span id="iVal">30</span></div>
 <div class="setting"><label>隐私模糊</label><div class="toggle" id="tPrivacy"></div></div>
 <div class="setting"><label>声音提醒</label><div class="toggle on" id="tSound"></div></div>
 </div>
 </div>
 </div>
-<footer>坐姿卫士 v0.1 MVP · MediaPipe Pose · 本地推理 · 无云端</footer>
+<div class="toast" id="toast"></div>
+<footer>坐姿闯关王 v0.2 · AI 姿态小游戏 · MediaPipe Pose · 本地推理 · 无云端</footer>
 <script type="module" src="app.js"></script>
 </body>
 </html>
