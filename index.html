@@ -3,124 +3,180 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>坐姿闯关王 Posture Quest - AI 姿态小游戏</title>
+<title>坐姿闯关王 · AI 姿态闯关小游戏</title>
 <style>
+:root{
+  --bg1:#eef2f7; --bg2:#f8fafc;
+  --surface:#ffffff;
+  --ink:#1e2430; --muted:#94a0b0; --line:rgba(20,30,50,.08);
+  --em:#10b981; --em-d:#059669; --em-glow:rgba(16,185,129,.28);
+  --amber:#f59e0b; --amber-d:#d97706;
+  --coral:#f43f5e;
+  --sky:#0ea5e9;
+  --shadow:0 10px 30px -12px rgba(15,23,42,.18);
+  --radius:22px;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:#0a0a14;color:#e0e0f0;min-height:100vh}
-.header{text-align:center;padding:20px;border-bottom:1px solid rgba(100,220,255,0.1)}
-.header h1{font-size:1.6rem;background:linear-gradient(135deg,#64dcff,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.header p{color:#888;font-size:0.8rem;margin-top:4px}
-.layout{display:flex;gap:16px;padding:16px;max-width:1100px;margin:0 auto;align-items:flex-start}
-.video-box{flex:1;position:relative;background:#111;border-radius:12px;overflow:hidden;border:2px solid rgba(100,220,255,0.2)}
-video{width:100%;display:block;transform:scaleX(-1)}
-canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)}
-.score-badge{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.75);border-radius:10px;padding:8px 12px;text-align:center;border:1px solid rgba(100,220,255,0.3)}
-.score-num{font-size:1.5rem;font-weight:bold;color:#4ade80}
-.score-label{font-size:0.6rem;color:#888}
-.energy-bar{position:absolute;top:10px;left:10px;width:150px;height:14px;background:rgba(0,0,0,0.6);border-radius:7px;overflow:hidden;border:1px solid rgba(100,220,255,0.3)}
-.energy-fill{height:100%;width:100%;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width 0.3s}
-.combo-float{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);font-size:2.4rem;font-weight:bold;color:#ffd54a;text-shadow:0 2px 10px rgba(0,0,0,0.7);opacity:0;transition:opacity 0.25s;pointer-events:none}
-.combo-float.show{opacity:1}
-.alert-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(255,140,0,0.92);color:#fff;text-align:center;padding:10px;font-weight:bold;font-size:1.05rem;display:none}
-.sidebar{width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
-.card{background:rgba(255,255,255,0.04);border:1px solid rgba(100,220,255,0.1);border-radius:10px;padding:12px}
-.card-title{font-size:0.7rem;color:#64dcff;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
-.btn{width:100%;padding:10px;border:none;border-radius:8px;font-size:0.9rem;font-weight:bold;cursor:pointer;font-family:inherit;transition:all 0.2s}
-.btn-go{background:linear-gradient(135deg,#64dcff,#a855f7);color:#fff}
-.btn-go:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(100,220,255,0.3)}
-.btn-go:disabled{opacity:0.4;cursor:not-allowed;transform:none}
-.btn-out{background:rgba(100,220,255,0.1);color:#64dcff;border:1px solid rgba(100,220,255,0.2)}
-.meter{display:flex;justify-content:space-between;padding:5px 8px;background:rgba(0,0,0,0.3);border-radius:6px;font-size:0.75rem;margin-bottom:4px}
-.meter-name{color:#aaa}
-.meter-val{font-weight:bold}
-.meter-val.g{color:#4ade80}.meter-val.w{color:#fbbf24}.meter-val.b{color:#f87171}
-.combo-big{text-align:center;font-size:1.7rem;font-weight:bold;color:#ffd54a;margin:2px 0;transition:transform 0.15s}
-.energy-mini{height:10px;background:rgba(0,0,0,0.3);border-radius:5px;overflow:hidden;margin:6px 0}
-.energy-mini-fill{height:100%;background:linear-gradient(90deg,#4ade80,#22d3ee);transition:width 0.3s}
-.xp-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.xp-icon{font-size:1.4rem}.level-badge{background:linear-gradient(135deg,#a855f7,#ec4899);border-radius:5px;padding:2px 8px;font-size:0.7rem;font-weight:bold}
-.level-title{color:#ffd54a;font-size:0.7rem;margin-left:2px}
-.xp-txt{font-size:0.65rem;color:#888;text-align:center;margin-bottom:4px}
-.timer{font-size:1.8rem;text-align:center;font-variant-numeric:tabular-nums;margin:2px 0}
-.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.stat{background:rgba(0,0,0,0.3);border-radius:6px;padding:8px;text-align:center}
-.stat-n{font-size:1.2rem;font-weight:bold;color:#64dcff}.stat-l{font-size:0.6rem;color:#888}
-.setting{display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;padding:4px 0}
-.setting label{color:#aaa}
-.toggle{width:36px;height:20px;background:rgba(255,255,255,0.1);border-radius:10px;cursor:pointer;position:relative;transition:background 0.2s}
-.toggle.on{background:#64dcff}
-.toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform 0.2s}
-.toggle.on::after{transform:translateX(16px)}
-input[type=range]{width:90px;accent-color:#64dcff}
-.status{font-size:0.7rem;color:#888;margin-bottom:8px}
-.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
-.dot.off{background:#f87171}.dot.on{background:#4ade80}
-.hint{background:rgba(100,220,255,0.08);border:1px solid rgba(100,220,255,0.15);border-radius:8px;padding:8px 12px;font-size:0.75rem;color:#64dcff;margin-top:10px;display:none}
-.hint.show{display:block}
-.privacy-blur{filter:blur(14px)}
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;padding:10px 22px;border-radius:20px;font-weight:bold;font-size:0.95rem;opacity:0;transition:all 0.3s;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none}
+html,body{height:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:radial-gradient(1200px 600px at 50% -10%, #ffffff, var(--bg1) 60%), var(--bg2);
+  color:var(--ink); min-height:100vh; display:flex; justify-content:center;
+  padding:26px 16px; -webkit-font-smoothing:antialiased;
+}
+.app{width:100%; max-width:480px; display:flex; flex-direction:column; gap:16px}
+.brand{display:flex; align-items:center; gap:12px}
+.logo{
+  width:46px;height:46px;border-radius:14px;
+  background:linear-gradient(135deg,var(--em),#34d399);
+  display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow)
+}
+.brand-text h1{font-size:1.5rem;font-weight:800;letter-spacing:.5px}
+.brand-text p{font-size:.74rem;color:var(--muted);margin-top:2px}
+.tip{font-size:.72rem;color:var(--muted);text-align:center;margin-top:-6px}
+
+.stage{
+  position:relative;width:100%;aspect-ratio:4/3;background:#0f172a;
+  border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)
+}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none}
+.hud{position:absolute;inset:0;padding:14px;display:flex;flex-direction:column;pointer-events:none}
+.hud-top{display:flex;justify-content:space-between;align-items:flex-start}
+.level-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.92);border-radius:999px;padding:5px 10px;box-shadow:var(--shadow)}
+.level-chip .lv{font-weight:800;font-size:.72rem;color:#fff;background:linear-gradient(135deg,var(--sky),#38bdf8);padding:2px 8px;border-radius:999px}
+.level-chip .lt{font-size:.72rem;color:var(--ink);font-weight:600}
+.level-chip .xp{font-size:.62rem;color:var(--muted);font-weight:600;margin-left:4px}
+.score-chip .t{display:block;font-size:.6rem;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:1px}
+.score-chip{background:rgba(255,255,255,.92);border-radius:14px;padding:6px 12px;text-align:center;box-shadow:var(--shadow)}
+.score-chip span{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.score-chip small{display:block;font-size:.58rem;color:var(--muted)}
+.combo-center{
+  position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);
+  font-size:2.2rem;font-weight:900;color:#fff;text-shadow:0 3px 16px rgba(0,0,0,.5);
+  opacity:0;transition:opacity .2s
+}
+.combo-center.show{opacity:1}
+.combo-center.pop{animation:pop .35s ease}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(1)}40%{transform:translate(-50%,-50%) scale(1.35)}100%{transform:translate(-50%,-50%) scale(1)}}
+.energy-wrap{position:absolute;left:14px;right:14px;bottom:14px;height:14px;background:rgba(255,255,255,.25);border-radius:999px;overflow:hidden;backdrop-filter:blur(4px)}
+.energy-fill{height:100%;width:100%;background:linear-gradient(90deg,var(--em),#34d399);border-radius:999px;transition:width .3s ease;box-shadow:0 0 12px var(--em-glow)}
+.energy-fill.low{background:linear-gradient(90deg,var(--amber),#fbbf24);box-shadow:none}
+.energy-label{position:absolute;right:8px;top:-18px;font-size:.6rem;color:#fff;opacity:.85}
+.alert-bar{
+  position:absolute;left:14px;right:14px;bottom:36px;background:rgba(245,158,11,.95);
+  color:#fff;text-align:center;padding:8px;border-radius:12px;font-weight:700;font-size:.9rem;
+  display:none;box-shadow:var(--shadow)
+}
+.loading{position:absolute;inset:0;background:rgba(15,23,42,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;font-size:.85rem}
+.loading.hide{display:none}
+.spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.25);border-top-color:#34d399;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center;box-shadow:var(--shadow)}
+.metric .mv{font-size:1rem;font-weight:800;font-variant-numeric:tabular-nums}
+.metric .ml{font-size:.6rem;color:var(--muted);margin-top:2px}
+.metric .mv.g{color:var(--em-d)} .metric .mv.w{color:var(--amber-d)} .metric .mv.b{color:var(--coral)}
+
+.controls{display:flex;gap:10px}
+.btn{flex:1;padding:14px;border:none;border-radius:16px;font-size:.95rem;font-weight:800;cursor:pointer;font-family:inherit;transition:transform .15s, box-shadow .15s}
+.btn-primary{background:linear-gradient(135deg,var(--em),#34d399);color:#fff;box-shadow:0 8px 20px -8px var(--em-glow)}
+.btn-primary:hover{transform:translateY(-2px)}
+.btn-ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow)}
+.btn-ghost:hover{transform:translateY(-1px)}
+.btn[style*="none"]{display:none}
+
+.settings{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow)}
+.set-row{display:flex;justify-content:space-between;align-items:center;font-size:.8rem}
+.set-row label{color:var(--ink);font-weight:600}
+.set-row .val{color:var(--muted);font-variant-numeric:tabular-nums}
+input[type=range]{width:120px;accent-color:var(--em)}
+.toggle{width:44px;height:24px;background:#d7dde6;border-radius:999px;cursor:pointer;position:relative;transition:background .2s}
+.toggle.on{background:var(--em)}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle.on::after{transform:translateX(20px)}
+
+.records{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rec{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center;box-shadow:var(--shadow)}
+.rec .rn{font-size:1.05rem;font-weight:800;color:var(--sky);font-variant-numeric:tabular-nums}
+.rec .rl{font-size:.6rem;color:var(--muted);margin-top:2px}
+
+.toast{
+  position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-20px);
+  background:linear-gradient(135deg,var(--em),#34d399);color:#fff;padding:11px 22px;
+  border-radius:999px;font-weight:800;font-size:.9rem;opacity:0;transition:all .3s;z-index:99;
+  box-shadow:var(--shadow);pointer-events:none
+}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-footer{text-align:center;padding:16px;font-size:0.65rem;color:#444;border-top:1px solid rgba(255,255,255,0.05)}
+footer{text-align:center;font-size:.66rem;color:var(--muted);padding-top:4px}
+.privacy-blur{filter:blur(16px)}
 </style>
 </head>
 <body>
-<div class="header">
-<h1>🎮 坐姿闯关王 Posture Quest</h1>
-<p>AI 姿态小游戏 · 本地运行 · 隐私安全 · 零上传</p>
+<div class="app">
+  <header class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" width="28" height="28" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2.4" fill="#fff" stroke="none"/>
+        <path d="M12 7.4 V15"/>
+        <path d="M12 11 H16.4"/>
+        <path d="M12 15 H7.6 M12 15 H16.4"/>
+        <path d="M9 15 V21 M15 15 V21"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>坐姿闯关王</h1>
+      <p>坐得稳，连击不停 · 本地运行 · 画面不出本机</p>
+    </div>
+  </header>
+  <p class="tip">点开始 → 坐直攒连击 → 坐歪连击断，看你能闯到第几关</p>
+
+  <main class="stage">
+    <video id="vid" autoplay playsinline muted></video>
+    <canvas id="cv"></canvas>
+    <div class="hud">
+      <div class="hud-top">
+      <div class="level-chip"><span class="lv" id="lvlBadge">Lv.1</span><span class="lt" id="lvlTitle">见习坐姿官</span><span class="xp" id="xpTxt">0/100 XP</span></div>
+      <div class="score-chip"><span id="scoreVal">--</span><small>姿态分</small><small id="timerDisp" class="t">00:00</small></div>
+      </div>
+      <div class="combo-center" id="comboBig">连击 0</div>
+      <div class="energy-wrap"><div class="energy-fill" id="energyFill"></div><span class="energy-label">能量</span></div>
+      <div class="alert-bar" id="alertBar">歪了！坐直攒能量 💪</div>
+      <div class="loading" id="loading"><div class="spinner"></div><span>AI 模型加载中…</span></div>
+    </div>
+  </main>
+
+  <section class="metrics">
+    <div class="metric"><div class="mv" id="mCva">--°</div><div class="ml">前倾</div></div>
+    <div class="metric"><div class="mv" id="mShoul">--°</div><div class="ml">肩斜</div></div>
+    <div class="metric"><div class="mv" id="mTrunk">--°</div><div class="ml">身弯</div></div>
+    <div class="metric"><div class="mv" id="mElbow">--°</div><div class="ml">手肘</div></div>
+  </section>
+
+  <section class="controls">
+    <button class="btn btn-primary" id="btnStart">🎮 开始闯关</button>
+    <button class="btn btn-ghost" id="btnCal" style="display:none">📐 重设</button>
+    <button class="btn btn-ghost" id="btnStop" style="display:none">⏹ 结束</button>
+  </section>
+
+  <section class="settings">
+    <div class="set-row"><label>灵敏度（°）</label><input type="range" id="sSens" min="6" max="26" value="14"><span class="val" id="sVal">14</span></div>
+    <div class="set-row"><label>提醒间隔（秒）</label><input type="range" id="sInt" min="10" max="120" value="30"><span class="val" id="iVal">30</span></div>
+    <div class="set-row"><label>隐私模糊</label><div class="toggle" id="tPrivacy"></div></div>
+    <div class="set-row"><label>声音提醒</label><div class="toggle on" id="tSound"></div></div>
+  </section>
+
+  <section class="records">
+    <div class="rec"><div class="rn" id="sGood">0%</div><div class="rl">稳坐率</div></div>
+    <div class="rec"><div class="rn" id="sNudge">0</div><div class="rl">失误</div></div>
+    <div class="rec"><div class="rn" id="sTotal">0分</div><div class="rl">时长</div></div>
+    <div class="rec"><div class="rn" id="sStreak">0</div><div class="rl">最长连击</div></div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+  <footer>坐姿闯关王 · AI 姿态闯关小游戏 · MediaPipe Pose · 本地推理</footer>
 </div>
-<div class="layout">
-<div class="video-box">
-<video id="vid" autoplay playsinline></video>
-<canvas id="cv"></canvas>
-<div class="score-badge"><div class="score-num" id="scoreVal">--</div><div class="score-label">姿态分</div></div>
-<div class="energy-bar"><div class="energy-fill" id="energyFill"></div></div>
-<div class="combo-float" id="comboFloat">连击!</div>
-<div class="alert-bar" id="alertBar">歪了！连击要断啦，坐直攒能量！</div>
-</div>
-<div class="sidebar">
-<div class="card">
-<div class="card-title">控制</div>
-<div class="status"><span class="dot off" id="dot"></span><span id="stTxt">未启动</span></div>
-<button class="btn btn-go" id="btnStart">🎮 开始闯关</button>
-<button class="btn btn-out" id="btnCal" style="margin-top:8px;display:none">📐 重设标准坐姿</button>
-<button class="btn btn-out" id="btnStop" style="margin-top:8px;display:none">⏹ 停止</button>
-<div class="hint show" id="hint">💡 坐好后点一下「开始闯关」，AI 会自动记住你的标准姿态</div>
-</div>
-<div class="card">
-<div class="card-title">保持</div>
-<div class="meter"><span class="meter-name">前倾</span><span class="meter-val" id="mCva">--°</span></div>
-<div class="meter"><span class="meter-name">肩斜</span><span class="meter-val" id="mShoul">--°</span></div>
-<div class="meter"><span class="meter-name">身弯</span><span class="meter-val" id="mTrunk">--°</span></div>
-<div class="meter"><span class="meter-name">手肘</span><span class="meter-val" id="mElbow">--°</span></div>
-</div>
-<div class="card">
-<div class="card-title">闯关</div>
-<div class="combo-big" id="comboBig">连击 0</div>
-<div class="energy-mini"><div class="energy-mini-fill" id="energyMini"></div></div>
-<div class="xp-row"><span class="xp-icon">🏆</span><span class="level-badge" id="lvlBadge">Lv.1</span><span class="level-title" id="lvlTitle">见习坐姿官</span></div>
-<div class="xp-txt" id="xpTxt">0/100 XP</div>
-<div class="timer" id="timerDisp">00:00</div>
-</div>
-<div class="card">
-<div class="card-title">战绩</div>
-<div class="stats-grid">
-<div class="stat"><div class="stat-n" id="sGood">0%</div><div class="stat-l">稳坐率</div></div>
-<div class="stat"><div class="stat-n" id="sNudge">0</div><div class="stat-l">失误</div></div>
-<div class="stat"><div class="stat-n" id="sTotal">0分</div><div class="stat-l">闯关时长</div></div>
-<div class="stat"><div class="stat-n" id="sStreak">0</div><div class="stat-l">最长连击</div></div>
-</div>
-</div>
-<div class="card">
-<div class="card-title">设置</div>
-<div class="setting"><label>灵敏度(°)</label><input type="range" id="sSens" min="5" max="25" value="12"><span id="sVal">12</span></div>
-<div class="setting"><label>提醒间隔(s)</label><input type="range" id="sInt" min="10" max="120" value="30"><span id="iVal">30</span></div>
-<div class="setting"><label>隐私模糊</label><div class="toggle" id="tPrivacy"></div></div>
-<div class="setting"><label>声音提醒</label><div class="toggle on" id="tSound"></div></div>
-</div>
-</div>
-</div>
-<div class="toast" id="toast"></div>
-<footer>坐姿闯关王 v0.2 · AI 姿态小游戏 · MediaPipe Pose · 本地推理 · 无云端</footer>
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=4"></script>
 </body>
 </html>
