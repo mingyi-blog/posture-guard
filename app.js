@@ -199,7 +199,7 @@ function onResults(results){
 
 async function startCamera(){
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){
-    window.__pgEnvCheck&&window.__pgEnvCheck("<b>当前环境不支持摄像头</b>：请在 Chrome/Edge 中通过本地服务器打开（双击 <code>启动服务器.bat</code>）。");
+    window.__pgEnvCheck&&window.__pgEnvCheck("<b>当前环境不支持摄像头</b>：请在 Chrome/Edge 中通过本地服务器打开（双击 <code>双击这里开始.bat</code>）。");
     return;
   }
   try {
@@ -217,7 +217,7 @@ async function startCamera(){
     pose = new Pose({locateFile:(f)=>"./assets/"+f});
   }catch(e){
     loading.classList.add("hide");
-    window.__pgEnvCheck&&window.__pgEnvCheck("<b>AI 模块加载失败</b>：请通过 <code>启动服务器.bat</code> 打开本页（不要直接双击 html）。");
+    window.__pgEnvCheck&&window.__pgEnvCheck("<b>AI 模块加载失败</b>：请通过 <code>双击这里开始.bat</code> 打开本页（不要直接双击 html）。");
     return;
   }
   pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
@@ -229,7 +229,7 @@ async function startCamera(){
   clearTimeout(startCamera._modelTimeout);
   startCamera._modelTimeout = setTimeout(()=>{
     if(firstResult && streaming){
-      window.__pgEnvCheck&&window.__pgEnvCheck("<b>AI 模型加载超时</b>：网络或资源异常。<br>请刷新重试，或双击 <code>启动服务器.bat</code> 本地运行。");
+      window.__pgEnvCheck&&window.__pgEnvCheck("<b>AI 模型加载超时</b>：网络或资源异常。<br>请刷新重试，或双击 <code>双击这里开始.bat</code> 本地运行。");
       stopCamera();
     }
   },30000);
